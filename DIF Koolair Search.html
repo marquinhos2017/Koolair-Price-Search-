@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFS06 · Price Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --magenta: #a80063;
+    --magenta-dark: #8a0052;
+    --magenta-deep: #6b0040;
+    --accent: #c2185b;
+    --ink: #1d1d1b;
+    --ink-soft: #707172;
+    --mist: #a5a6a8;
+    --bg: #f7f6f7;
+    --card: #ffffff;
+    --card-line: #e8e3e5;
+    --radius: 22px;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0;}
+
+  body{
+    font-family:'Open Sans',system-ui,-apple-system,sans-serif;
+    background:var(--bg);
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    background-image:
+      radial-gradient(circle at 8% 12%, rgba(168,0,99,.08) 0%, transparent 55%),
+      radial-gradient(circle at 94% 88%, rgba(168,0,99,.08) 0%, transparent 55%);
+  }
+
+  h1,h2,h3,.brand,.opt-title,.price-amount,.q-title{
+    font-family:'Open Sans',sans-serif;
+  }
+
+  .stage{
+    width:100%;
+    max-width:660px;
+    background:var(--card);
+    border-radius:32px;
+    box-shadow:0 4px 24px rgba(0,0,0,.04), 0 24px 60px rgba(107,0,64,.10);
+    overflow:hidden;
+    position:relative;
+  }
+
+  .stage::before{
+    content:'';
+    position:absolute;
+    top:0;left:0;right:0;height:4px;
+    background:linear-gradient(90deg,var(--magenta),var(--magenta-deep),var(--magenta));
+    background-size:200% 100%;
+    animation:shimmer 3s ease-in-out infinite;
+    z-index:2;
+  }
+  @keyframes shimmer{0%,100%{background-position:0 0}50%{background-position:100% 0}}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:22px 28px 0;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight:700;
+    font-size:17px;
+    color:var(--ink);
+    letter-spacing:-.2px;
+  }
+  .brand .mark{
+    width:34px;height:34px;border-radius:10px;
+    background:linear-gradient(135deg,var(--magenta),var(--magenta-deep));
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:16px;font-weight:700;
+    box-shadow:0 4px 12px rgba(168,0,99,.30);
+  }
+  .brand span.tag{color:var(--magenta-deep);}
+  .restart-btn{
+    border:none;background:transparent;color:var(--mist);
+    font-size:13px;font-weight:600;cursor:pointer;
+    padding:6px 12px;border-radius:100px;
+    transition:all .25s ease;
+    display:flex;align-items:center;gap:6px;
+  }
+  .restart-btn:hover{background:#f4eef1;color:var(--magenta-deep);}
+
+  /* ---------- progress ---------- */
+  .progress-wrap{ padding:16px 28px 0; }
+  .progress-track{ height:6px; background:#eaf4ee; border-radius:100px; overflow:hidden; }
+  .progress-fill{
+    height:100%;
+    background:linear-gradient(90deg,var(--magenta),var(--magenta-dark));
+    border-radius:100px;
+    transition:width .5s cubic-bezier(.22,1,.36,1);
+    width:0%;
+  }
+  .progress-meta{
+    display:flex;justify-content:space-between;
+    margin-top:8px;font-size:12px;font-weight:600;color:var(--mist);
+    letter-spacing:.2px;
+  }
+
+  /* ---------- crumbs ---------- */
+  .crumbs{ display:flex;flex-wrap:wrap;gap:8px; padding:14px 28px 0; }
+  .crumb{
+    display:flex;align-items:center;gap:6px;
+    background:#f4eef1;
+    border:1px solid var(--card-line);
+    color:var(--magenta-deep);
+    font-size:12px;font-weight:600;
+    padding:5px 12px;border-radius:100px;
+  }
+  .crumb .k{color:var(--mist);font-weight:500;}
+
+  /* ---------- panel / screens ---------- */
+  .panel{ padding:30px 28px 32px; min-height:340px; display:flex; flex-direction:column; }
+
+  .screen{display:none;}
+  .screen.active{ display:flex; flex-direction:column; animation:slideIn .45s cubic-bezier(.22,1,.36,1) forwards; }
+  @keyframes slideIn{ from{opacity:0;transform:translateX(18px);} to{opacity:1;transform:translateX(0);} }
+  .screen.back-anim{animation:slideInBack .45s cubic-bezier(.22,1,.36,1) forwards;}
+  @keyframes slideInBack{ from{opacity:0;transform:translateX(-18px);} to{opacity:1;transform:translateX(0);} }
+
+  .q-eyebrow{
+    font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--magenta-dark);margin-bottom:8px;
+  }
+  .q-eyebrow.amber{color:var(--accent);}
+  .q-title{ font-size:24px;font-weight:700;color:var(--ink);letter-spacing:-.4px; margin-bottom:6px;line-height:1.25; }
+  .q-sub{ font-size:14px;color:var(--ink-soft);margin-bottom:22px; }
+
+  /* ---------- option cards ---------- */
+  .options{ display:grid; gap:12px; margin-bottom:8px; }
+  .options.grid-2{grid-template-columns:1fr 1fr;}
+  .options.grid-3{grid-template-columns:repeat(3,1fr);}
+
+  @media (max-width:520px){
+    .options.grid-2{grid-template-columns:1fr;}
+    .options.grid-3{grid-template-columns:1fr 1fr;}
+  }
+
+  .opt{
+    background:#fefbfc;
+    border:2px solid var(--card-line);
+    border-radius:16px;
+    padding:16px 16px;
+    cursor:pointer;
+    text-align:left;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    transition:all .25s cubic-bezier(.22,1,.36,1);
+    font-family:'Open Sans',sans-serif;
+    width:100%;
+  }
+  .opt:hover{
+    border-color:#c9899f;
+    background:#fdf7fa;
+    transform:translateY(-2px);
+    box-shadow:0 8px 20px rgba(168,0,99,.12);
+  }
+  .opt:active{transform:translateY(0);}
+  .opt-icon{font-size:20px;margin-bottom:6px;}
+  .opt-title{font-size:15px;font-weight:600;color:var(--ink);line-height:1.3;}
+  .opt-meta{font-size:12px;color:var(--mist);font-weight:500;}
+
+  .opt.big{ padding:26px 20px; align-items:center; text-align:center; }
+  .opt.big .opt-icon{
+    font-size:34px; width:64px;height:64px; border-radius:18px;
+    background:linear-gradient(135deg,rgba(168,0,99,.14),rgba(138,0,82,.10));
+    display:flex;align-items:center;justify-content:center; margin-bottom:12px;
+  }
+  .opt.big .opt-title{font-size:17px;}
+  .opt.big .opt-meta{margin-top:4px;}
+
+  .opt.dashed{ border-style:dashed; border-color:#e0a9c2; background:#fbf1f5; }
+  .opt.dashed:hover{ border-color:var(--accent); background:#fbeaf1; box-shadow:0 8px 20px rgba(194,24,91,.14); }
+
+  .opt.combo{ display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:12px; }
+  .combo-formula{ font-family:'Open Sans',sans-serif; font-size:15px; font-weight:600; color:var(--ink); }
+  .combo-formula .plus{color:var(--mist);font-weight:500;margin:0 3px;}
+  .combo-meta-row{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+  .combo-price{ font-family:'Open Sans',sans-serif; font-size:16px; font-weight:700; color:var(--magenta-deep); }
+  .combo-pieces{ font-size:11px; color:var(--mist); font-weight:600; }
+  .combo-best{
+    background:rgba(168,0,99,.14); color:var(--magenta-deep);
+    font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; letter-spacing:.3px;
+  }
+
+  /* ---------- custom input ---------- */
+  .custom-input-row{ display:flex; align-items:stretch; gap:10px; margin-bottom:6px; }
+  .custom-input-wrap{ flex:1; position:relative; display:flex; align-items:center; }
+  .custom-input-wrap input{
+    width:100%;
+    padding:18px 60px 18px 20px;
+    font-size:22px;
+    font-weight:700;
+    font-family:'Open Sans',sans-serif;
+    color:var(--ink);
+    border:2px solid var(--card-line);
+    border-radius:16px;
+    background:#fefbfc;
+    transition:all .25s ease;
+  }
+  .custom-input-wrap input:focus{
+    outline:none; border-color:var(--magenta); background:#fff;
+    box-shadow:0 0 0 6px rgba(168,0,99,.10);
+  }
+  .custom-input-wrap .unit{
+    position:absolute; right:20px; font-size:14px; font-weight:700; color:var(--mist); pointer-events:none;
+  }
+  .modules-hint{ display:flex; flex-wrap:wrap; gap:6px; margin:14px 0 22px; }
+  .module-chip{
+    background:#f4eef1; border:1px solid var(--card-line); color:var(--ink-soft);
+    font-size:12px; font-weight:600; padding:4px 11px; border-radius:100px;
+  }
+  .custom-error{
+    background:#fbeaf1; border:1px solid #e0a9c2; color:#8a0052;
+    font-size:13px; font-weight:500; padding:12px 16px; border-radius:12px;
+    margin-bottom:14px; display:none;
+  }
+  .custom-error.show{display:block;}
+
+  /* ---------- nav row ---------- */
+  .nav-row{ margin-top:auto; padding-top:22px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .btn-back{
+    border:none;background:transparent;color:var(--ink-soft);
+    font-size:13px;font-weight:600;cursor:pointer;
+    padding:10px 6px; display:flex;align-items:center;gap:6px;
+    transition:color .2s ease; white-space:nowrap;
+  }
+  .btn-back:hover{color:var(--magenta-deep);}
+
+  /* ---------- result screen ---------- */
+  .result-badge{
+    align-self:flex-start; display:flex;align-items:center;gap:6px;
+    background:rgba(168,0,99,.12); color:var(--magenta-deep);
+    font-size:12px;font-weight:700; padding:6px 14px;border-radius:100px;
+    border:1px solid rgba(168,0,99,.20); margin-bottom:18px;
+  }
+  .result-badge .dot{
+    width:6px;height:6px;border-radius:50%;background:var(--magenta);
+    animation:blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+  .result-card{
+    background:linear-gradient(160deg,#fdf6f9,#f7e9f1);
+    border:2px solid rgba(168,0,99,.18);
+    border-radius:20px; padding:26px 24px;
+    display:flex; flex-direction:column; gap:18px;
+    animation:popIn .5s cubic-bezier(.22,1,.36,1) forwards;
+  }
+  @keyframes popIn{from{opacity:0;transform:scale(.96);}to{opacity:1;transform:scale(1);}}
+
+  .result-price-row{ display:flex;align-items:center;gap:16px; }
+  .price-icon{
+    width:58px;height:58px;border-radius:16px;
+    background:linear-gradient(135deg,var(--magenta),var(--magenta-deep));
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:26px;font-weight:700;
+    box-shadow:0 6px 18px rgba(168,0,99,.28); flex-shrink:0;
+  }
+  .price-label{
+    font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+    color:var(--magenta-dark);margin-bottom:2px;
+  }
+  .price-amount{ font-size:42px;font-weight:700;color:var(--ink);letter-spacing:-1px;line-height:1; }
+  .price-amount .currency{ font-size:24px;color:var(--magenta);font-weight:700;margin-right:2px; }
+
+  .result-specs{ display:flex;flex-wrap:wrap;gap:8px; padding-top:14px; border-top:1px dashed rgba(168,0,99,.25); }
+
+  .breakdown{ display:flex; flex-direction:column; gap:0; padding-top:14px; border-top:1px dashed rgba(168,0,99,.25); }
+  .breakdown-title{
+    font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--mist);margin-bottom:10px;
+  }
+  .breakdown-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:9px 0; border-bottom:1px solid rgba(168,0,99,.10); font-size:14px;
+  }
+  .breakdown-row:last-child{border-bottom:none;}
+  .breakdown-row .mod{ font-weight:600;color:var(--ink); display:flex;align-items:center;gap:8px; }
+  .breakdown-row .mod .idx{
+    width:20px;height:20px;border-radius:6px; background:#f8e3ee;color:var(--magenta-deep);
+    font-size:11px;font-weight:700; display:flex;align-items:center;justify-content:center; flex-shrink:0;
+  }
+  .breakdown-row .val{font-weight:700;color:var(--magenta-deep);}
+  .breakdown-total{
+    display:flex;justify-content:space-between; padding-top:10px;margin-top:4px;
+    border-top:2px solid rgba(168,0,99,.2); font-size:14px;font-weight:700;color:var(--ink);
+  }
+
+  .result-actions{ display:flex;gap:10px; margin-top:6px; }
+  .btn-primary{
+    flex:1;
+    background:linear-gradient(135deg,var(--magenta),var(--magenta-dark));
+    color:#fff;border:none;border-radius:14px;
+    padding:14px;font-size:14px;font-weight:700;
+    cursor:pointer; display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .2s ease, box-shadow .2s ease;
+    box-shadow:0 6px 16px rgba(168,0,99,.25);
+    width:100%;
+  }
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(168,0,99,.32);}
+  .btn-secondary{
+    background:#fff; color:var(--ink); border:2px solid var(--card-line); border-radius:14px;
+    padding:14px 18px; font-size:14px;font-weight:700; cursor:pointer; transition:all .2s ease;
+  }
+  .btn-secondary:hover{border-color:#c9899f;background:#fdf7fa;}
+  .btn-primary.amber{
+    background:linear-gradient(135deg,var(--accent),#8a0052);
+    box-shadow:0 6px 16px rgba(194,24,91,.28);
+  }
+  .btn-primary.amber:hover{box-shadow:0 10px 22px rgba(194,24,91,.34);}
+
+  .combo-list{
+    display:flex; flex-direction:column; gap:10px;
+    max-height:340px; overflow-y:auto; padding-right:4px; margin-bottom:6px;
+  }
+  .combo-list::-webkit-scrollbar{width:6px;}
+  .combo-list::-webkit-scrollbar-track{background:#f4eef1;border-radius:10px;}
+  .combo-list::-webkit-scrollbar-thumb{background:var(--magenta);border-radius:10px;}
+
+  @media (max-width:520px){
+    .topbar{padding:18px 20px 0;}
+    .progress-wrap{padding:14px 20px 0;}
+    .crumbs{padding:12px 20px 0;}
+    .panel{padding:22px 20px 26px;min-height:300px;}
+    .q-title{font-size:20px;}
+    .price-amount{font-size:32px;}
+    .result-actions{flex-direction:column;}
+    .opt.combo{flex-direction:column;align-items:flex-start;}
+    .combo-meta-row{align-items:flex-start;flex-direction:row;gap:10px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <div class="topbar">
+    <div class="brand"><span class="mark">◆</span>RFS06 <span class="tag">Price Finder</span></div>
+    <button class="restart-btn" id="restartTop">↺ Restart</button>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-meta">
+      <span id="progressText">Step 1</span>
+      <span id="progressPct">0%</span>
+    </div>
+  </div>
+
+  <div class="crumbs" id="crumbs"></div>
+
+  <div class="panel" id="panel">
+
+    <!-- SCREEN 0: category -->
+    <div class="screen active" id="screen-category">
+      <div class="q-eyebrow">Get started</div>
+      <div class="q-title">What are you pricing today?</div>
+      <div class="q-sub">Pick a product family to begin — we'll ask a few quick questions.</div>
+      <div class="options grid-2">
+        <button class="opt big" data-cat="diffuser">
+          <span class="opt-icon">💨</span>
+          <span class="opt-title">Diffuser</span>
+          <span class="opt-meta">4 models available</span>
+        </button>
+        <button class="opt big" data-cat="pleno">
+          <span class="opt-icon">📦</span>
+          <span class="opt-title">Pleno</span>
+          <span class="opt-meta">6 configurations</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- SCREEN: diffuser type -->
+    <div class="screen" id="screen-diff-type">
+      <div class="q-eyebrow">Step 1 · Diffuser</div>
+      <div class="q-title">Which diffuser model?</div>
+      <div class="q-sub">Choose the exact product line.</div>
+      <div class="options" id="diffTypeOptions"></div>
+      <div class="nav-row">
+        <button class="btn-back" data-back="category">← Back</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: diffuser volume -->
+    <div class="screen" id="screen-diff-volume">
+      <div class="q-eyebrow">Step 2 · Diffuser</div>
+      <div class="q-title">What's the air volume?</div>
+      <div class="q-sub">Pick a standard size, or build a custom dimension from modules.</div>
+      <div class="options grid-3" id="diffVolumeOptions"></div>
+      <button class="opt dashed" id="customDimBtn" style="margin-top:6px;">
+        <span class="opt-icon">📐</span>
+        <span class="opt-title">Custom dimension</span>
+        <span class="opt-meta">Combine standard modules to hit an exact length</span>
+      </button>
+      <div class="nav-row">
+        <button class="btn-back" data-back="diff-type">← Back</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: diffuser custom dimension input -->
+    <div class="screen" id="screen-diff-custom-input">
+      <div class="q-eyebrow amber">Custom · Diffuser</div>
+      <div class="q-title">What total dimension do you need?</div>
+      <div class="q-sub">Enter the target length in mm — we'll combine standard modules to match it.</div>
+      <div class="custom-input-row">
+        <div class="custom-input-wrap">
+          <input type="number" id="customDimInput" placeholder="e.g. 3200" min="600" step="1">
+          <span class="unit">mm</span>
+        </div>
+      </div>
+      <div class="modules-hint" id="moduleHint"></div>
+      <div class="custom-error" id="customError"></div>
+      <button class="btn-primary amber" id="findCombosBtn">🔎 Find combinations</button>
+      <div class="nav-row">
+        <button class="btn-back" data-back="diff-volume">← Back</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: diffuser pressure -->
+    <div class="screen" id="screen-diff-pressure">
+      <div class="q-eyebrow" id="diffPressureEyebrow">Step 3 · Diffuser</div>
+      <div class="q-title">What's the pressure?</div>
+      <div class="q-sub" id="diffPressureSub">Select the operating pressure in Pa.</div>
+      <div class="options grid-3" id="diffPressureOptions"></div>
+      <div class="nav-row">
+        <button class="btn-back" id="diffPressureBack">← Back</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: diffuser combo select -->
+    <div class="screen" id="screen-diff-combo-select">
+      <div class="q-eyebrow amber">Custom · Diffuser</div>
+      <div class="q-title" id="comboSelectTitle">Choose a combination</div>
+      <div class="q-sub" id="comboSelectSub">These module combinations reach your target length.</div>
+      <div class="combo-list" id="comboList"></div>
+      <div class="nav-row">
+        <button class="btn-back" data-back="diff-pressure">← Back</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: pleno volume -->
+    <div class="screen" id="screen-pleno-volume">
+      <div class="q-eyebrow">Step 1 · Pleno</div>
+      <div class="q-title">What's the air volume?</div>
+      <div class="q-sub">Select the required airflow in m³/h.</div>
+      <div class="options grid-3" id="plenoVolumeOptions"></div>
+      <div class="nav-row">
+        <button class="btn-back" data-back="category">← Back</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: pleno pressure -->
+    <div class="screen" id="screen-pleno-pressure">
+      <div class="q-eyebrow">Step 2 · Pleno</div>
+      <div class="q-title">What's the pressure?</div>
+      <div class="q-sub">Select the operating pressure in Pa.</div>
+      <div class="options grid-3" id="plenoPressureOptions"></div>
+      <div class="nav-row">
+        <button class="btn-back" data-back="pleno-volume">← Back</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: pleno type -->
+    <div class="screen" id="screen-pleno-type">
+      <div class="q-eyebrow">Step 3 · Pleno</div>
+      <div class="q-title">Which configuration?</div>
+      <div class="q-sub">Choose insulation, position and damper setup.</div>
+      <div class="options" id="plenoTypeOptions"></div>
+      <div class="nav-row">
+        <button class="btn-back" data-back="pleno-pressure">← Back</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: result -->
+    <div class="screen" id="screen-result">
+      <div class="result-badge"><span class="dot"></span><span id="resultBadgeText">Exact match found</span></div>
+      <div class="result-card">
+        <div class="result-price-row">
+          <div class="price-icon">€</div>
+          <div>
+            <div class="price-label" id="resultLabel">Price</div>
+            <div class="price-amount"><span class="currency">€</span><span id="resultPrice">—</span></div>
+          </div>
+        </div>
+        <div class="result-specs" id="resultSpecs"></div>
+        <div class="breakdown" id="breakdownWrap" style="display:none;">
+          <div class="breakdown-title">Module breakdown</div>
+          <div id="breakdownRows"></div>
+          <div class="breakdown-total">
+            <span>Total dimension / price</span>
+            <span id="breakdownTotal">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="result-actions">
+        <button class="btn-secondary" id="editBtn">Edit answers</button>
+        <button class="btn-primary" id="newSearchBtn">🔍 New search</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DATA
+============================================================ */
+const diffPriceData = {
+  "DF-LIT-E 4.0 Supply (only dif.)": {
+    600:{15:86.22,20:87.12,33:95.53,40:99.53,50:103.97},
+    1000:{15:107.03,20:108.32,33:120.87,40:127.01,50:133.99},
+    1200:{15:124.10,20:125.62,33:140.81,40:148.20,50:156.54},
+    1500:{15:141.72,20:143.53,33:161.85,40:170.83,50:181.07},
+    1800:{15:162.11,20:164.25,33:186.26,40:197.02,50:209.26},
+    2000:{15:175.09,20:177.43,33:201.49,40:213.34,50:226.83}
+  },
+  "DF-LIT-E 4.0 -R-CP (only dif.)": {
+    600:{15:83.39,20:84.76,33:93.82,40:96.13,50:98.97},
+    1000:{15:108.19,20:110.18,33:123.69,40:126.95,50:131.10},
+    1200:{15:126.26,20:130.26,33:144.93,40:148.83,50:153.76},
+    1500:{15:145.36,20:148.22,33:167.85,40:172.47,50:178.39},
+    1800:{15:166.28,20:169.67,33:193.21,40:198.71,50:205.74},
+    2000:{15:179.66,20:183.36,33:209.13,40:215.10,50:222.79}
+  },
+  "DF-LIT-E 4.0 -R (only dif.)": {
+    600:{15:69.49,20:69.84,33:76.24,40:77.12,50:77.90},
+    1000:{15:85.43,20:85.78,33:95.01,40:95.95,50:96.81},
+    1200:{15:99.79,20:100.21,33:111.40,40:112.55,50:113.55},
+    1500:{15:112.82,20:113.23,33:126.55,40:127.74,50:128.80},
+    1800:{15:128.25,20:128.73,33:144.71,40:146.13,50:147.34},
+    2000:{15:137.64,20:138.12,33:155.52,40:156.97,50:158.23}
+  },
+  "RFS06": {
+    600:{15:49.82,20:49.82,33:49.82,40:49.82,50:49.82},
+    1000:{15:75.25,20:75.25,33:75.25,40:75.25,50:75.25},
+    1200:{15:87.15,20:87.15,33:87.15,40:87.15,50:87.15},
+    1500:{15:117.49,20:117.49,33:117.49,40:117.49,50:117.49},
+    1800:{15:135.34,20:135.34,33:135.34,40:135.34,50:135.34},
+    2000:{15:150.48,20:150.48,33:150.48,40:150.48,50:150.48}
+  }
+};
+
+const diffTypeMeta = [
+  {name:"DF-LIT-E 4.0 Supply (only dif.)", icon:"🟢", meta:"Supply line"},
+  {name:"DF-LIT-E 4.0 -R-CP (only dif.)", icon:"🔵", meta:"-R-CP variant"},
+  {name:"DF-LIT-E 4.0 -R (only dif.)", icon:"🟣", meta:"-R variant"},
+  {name:"RFS06", icon:"⚪", meta:"Flat rate — all pressures"}
+];
+
+const diffVolumes = [600,1000,1200,1500,1800,2000];
+const diffPressures = [15,20,33,40,50];
+
+const plenoData = {
+  600:{15:[125,84.06,101.59,128.61,161.32,102.22,134.94],20:[160,84.90,102.73,128.14,160.85,101.74,134.46],33:[160,87.11,105.73,126.92,159.62,100.52,133.23],40:[200,88.29,107.34,126.25,158.96,99.87,132.57],50:[200,90.00,109.64,125.32,158.02,98.92,131.63]},
+  1000:{15:[125,103.36,127.45,172.02,213.59,128.65,170.22],20:[160,104.47,128.99,171.27,212.83,127.90,169.45],33:[160,107.39,132.99,169.29,210.85,125.92,167.48],40:[200,108.95,135.15,168.23,209.79,124.86,166.42],50:[200,111.19,138.24,166.71,208.27,123.34,164.90]},
+  1200:{15:[125,113.38,140.78,193.72,239.73,142.53,188.55],20:[160,114.63,142.52,192.81,238.83,141.63,187.64],33:[160,117.89,147.04,190.46,236.48,139.27,185.29],40:[200,119.66,149.48,189.19,235.21,138.02,184.02],50:[200,122.15,152.97,187.39,233.40,136.20,182.22]},
+  1500:{15:[125,160.79,193.25,262.75,315.47,199.35,252.07],20:[160,162.25,195.28,261.64,314.36,198.24,250.96],33:[160,166.03,200.58,258.73,311.45,195.33,248.03],40:[200,168.07,203.43,257.16,309.87,193.76,246.47],50:[200,171.00,207.52,254.92,307.63,191.50,244.23]},
+  1800:{15:[125,176.87,214.43,295.19,354.64,220.16,279.62],20:[160,178.53,216.78,293.85,353.30,218.82,278.27],33:[160,182.85,222.88,290.37,349.83,215.34,274.81],40:[200,185.17,226.15,288.51,347.95,213.47,272.93],50:[200,188.50,230.86,285.83,345.28,210.79,270.26]},
+  2000:{15:[125,188.03,229.07,317.92,381.90,234.83,298.81],20:[160,189.82,231.60,316.45,380.42,233.35,297.32],33:[160,194.49,238.23,312.60,376.56,229.50,293.46],40:[200,197.01,241.80,310.52,374.49,227.42,291.39],50:[200,200.60,246.92,307.57,371.52,224.47,288.43]}
+};
+
+const plenoTypeMeta = [
+  {name:"Uninsulated Lateral (PFL) + Damper -RL", icon:"◧", meta:"Lateral · Uninsulated"},
+  {name:"Insulated Lateral (PFLA) + Damper -RL", icon:"◨", meta:"Lateral · Insulated"},
+  {name:"Uninsulated Top (PFS) + Equalizer + Damper -RL (Supply)", icon:"▲", meta:"Top · Supply · Uninsulated"},
+  {name:"Insulated Top (PFSA) + Equalizer + Damper -RL (Supply)", icon:"▲", meta:"Top · Supply · Insulated"},
+  {name:"Uninsulated Top (PFS) + Damper -RL (Return)", icon:"▼", meta:"Top · Return · Uninsulated"},
+  {name:"Insulated Top (PFSA) + Damper -RL (Return)", icon:"▼", meta:"Top · Return · Insulated"}
+];
+
+const plenoVolumes = [600,1000,1200,1500,1800,2000];
+const plenoPressures = [15,20,33,40,50];
+
+const MAX_COMBO_PIECES = 6;
+const MAX_COMBO_RESULTS = 10;
+
+/* ============================================================
+   STATE
+============================================================ */
+let state = {
+  category:null,
+  diffType:null, diffVolume:null, diffPressure:null,
+  diffMode:'standard',        // 'standard' | 'custom'
+  customTarget:null,
+  selectedCombo:null,
+  plenoVolume:null, plenoPressure:null, plenoType:null
+};
+
+let history = ['category'];
+
+/* ============================================================
+   DOM HELPERS
+============================================================ */
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
+const progressPct = document.getElementById('progressPct');
+const crumbsEl = document.getElementById('crumbs');
+
+function screenId(key){ return 'screen-' + key; }
+
+function showScreen(key, direction){
+  document.querySelectorAll('.screen').forEach(s=>{
+    s.classList.remove('active','back-anim');
+  });
+  const el = document.getElementById(screenId(key));
+  el.classList.add('active');
+  if(direction === 'back') el.classList.add('back-anim');
+  updateProgress(key);
+  updateCrumbs();
+}
+
+const STEP_MAP = {
+  standard: {'category':1,'diff-type':2,'diff-volume':3,'diff-pressure':4,'result':5},
+  custom:   {'category':1,'diff-type':2,'diff-volume':3,'diff-custom-input':4,'diff-pressure':5,'diff-combo-select':6,'result':7},
+  pleno:    {'category':1,'pleno-volume':2,'pleno-pressure':3,'pleno-type':4,'result':5}
+};
+
+function updateProgress(key){
+  let map;
+  if(state.category === 'diffuser') map = STEP_MAP[state.diffMode];
+  else if(state.category === 'pleno') map = STEP_MAP.pleno;
+  else map = STEP_MAP.standard;
+  const total = Math.max(...Object.values(map));
+  const idx = map[key] || 1;
+  const pct = Math.round((idx/total)*100);
+  progressFill.style.width = pct + '%';
+  progressPct.textContent = pct + '%';
+  progressText.textContent = key === 'category' ? 'Getting started' : (key === 'result' ? 'Done' : 'Step ' + idx + ' of ' + total);
+}
+
+function crumb(label, value){
+  return '<span class="crumb"><span class="k">'+label+'</span>'+value+'</span>';
+}
+
+function updateCrumbs(){
+  let html = '';
+  if(state.category === 'diffuser'){
+    if(state.diffType) html += crumb('Model', state.diffType.replace(' (only dif.)',''));
+    if(state.diffMode === 'custom' && state.customTarget) html += crumb('Target', state.customTarget+' mm');
+    if(state.diffMode === 'standard' && state.diffVolume) html += crumb('Volume', state.diffVolume+' m³/h');
+    if(state.diffPressure) html += crumb('Pressure', state.diffPressure+' Pa');
+    if(state.diffMode === 'custom' && state.selectedCombo) html += crumb('Combo', state.selectedCombo.join('+'));
+  } else if(state.category === 'pleno'){
+    if(state.plenoVolume) html += crumb('Volume', state.plenoVolume+' m³/h');
+    if(state.plenoPressure) html += crumb('Pressure', state.plenoPressure+' Pa');
+    if(state.plenoType !== null && state.plenoType !== undefined) html += crumb('Type', plenoTypeMeta[state.plenoType].meta);
+  }
+  crumbsEl.innerHTML = html;
+}
+
+function go(key){
+  history.push(key);
+  showScreen(key, 'fwd');
+}
+
+function goBack(key){
+  history.pop();
+  showScreen(key, 'back');
+}
+
+function resetAll(){
+  state = {
+    category:null,
+    diffType:null, diffVolume:null, diffPressure:null,
+    diffMode:'standard', customTarget:null, selectedCombo:null,
+    plenoVolume:null, plenoPressure:null, plenoType:null
+  };
+  history = ['category'];
+  document.getElementById('customDimInput').value = '';
+  document.getElementById('customError').classList.remove('show');
+  showScreen('category');
+}
+
+/* ============================================================
+   BUILD OPTION LISTS
+============================================================ */
+function buildDiffTypeOptions(){
+  const wrap = document.getElementById('diffTypeOptions');
+  wrap.innerHTML = '';
+  diffTypeMeta.forEach(t=>{
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = `<span class="opt-icon">${t.icon}</span><span class="opt-title">${t.name}</span><span class="opt-meta">${t.meta}</span>`;
+    b.addEventListener('click', ()=>{
+      state.diffType = t.name;
+      go('diff-volume');
+    });
+    wrap.appendChild(b);
+  });
+}
+
+function buildDiffVolumeOptions(){
+  const wrap = document.getElementById('diffVolumeOptions');
+  wrap.innerHTML = '';
+  diffVolumes.forEach(v=>{
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = `<span class="opt-title">${v}</span><span class="opt-meta">m³/h</span>`;
+    b.addEventListener('click', ()=>{
+      state.diffMode = 'standard';
+      state.diffVolume = v;
+      document.getElementById('diffPressureEyebrow').textContent = 'Step 3 · Diffuser';
+      document.getElementById('diffPressureSub').textContent = 'Select the operating pressure in Pa.';
+      go('diff-pressure');
+    });
+    wrap.appendChild(b);
+  });
+}
+
+function buildDiffPressureOptions(){
+  const wrap = document.getElementById('diffPressureOptions');
+  wrap.innerHTML = '';
+  diffPressures.forEach(p=>{
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = `<span class="opt-title">${p}</span><span class="opt-meta">Pa</span>`;
+    b.addEventListener('click', ()=>{
+      state.diffPressure = p;
+      if(state.diffMode === 'custom'){
+        renderComboList();
+        go('diff-combo-select');
+      } else {
+        showDiffResult();
+        go('result');
+      }
+    });
+    wrap.appendChild(b);
+  });
+}
+
+function buildPlenoVolumeOptions(){
+  const wrap = document.getElementById('plenoVolumeOptions');
+  wrap.innerHTML = '';
+  plenoVolumes.forEach(v=>{
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = `<span class="opt-title">${v}</span><span class="opt-meta">m³/h</span>`;
+    b.addEventListener('click', ()=>{
+      state.plenoVolume = v;
+      go('pleno-pressure');
+    });
+    wrap.appendChild(b);
+  });
+}
+
+function buildPlenoPressureOptions(){
+  const wrap = document.getElementById('plenoPressureOptions');
+  wrap.innerHTML = '';
+  plenoPressures.forEach(p=>{
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = `<span class="opt-title">${p}</span><span class="opt-meta">Pa</span>`;
+    b.addEventListener('click', ()=>{
+      state.plenoPressure = p;
+      go('pleno-type');
+    });
+    wrap.appendChild(b);
+  });
+}
+
+function buildPlenoTypeOptions(){
+  const wrap = document.getElementById('plenoTypeOptions');
+  wrap.innerHTML = '';
+  plenoTypeMeta.forEach((t, idx)=>{
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = `<span class="opt-icon">${t.icon}</span><span class="opt-title">${t.name}</span><span class="opt-meta">${t.meta}</span>`;
+    b.addEventListener('click', ()=>{
+      state.plenoType = idx;
+      showPlenoResult();
+      go('result');
+    });
+    wrap.appendChild(b);
+  });
+}
+
+/* ============================================================
+   CUSTOM DIMENSION — combination search
+============================================================ */
+function buildModuleHint(){
+  const wrap = document.getElementById('moduleHint');
+  wrap.innerHTML = diffVolumes.map(v=>`<span class="module-chip">${v} mm</span>`).join('');
+}
+
+// Find multisets of values (non-decreasing, repetition allowed) summing to target
+function findCombinations(target, values, maxPieces){
+  const results = [];
+  const sorted = [...values].sort((a,b)=>a-b);
+
+  function dfs(remaining, startIdx, current){
+    if(remaining === 0 && current.length > 0){
+      results.push([...current]);
+      return;
+    }
+    if(current.length >= maxPieces) return;
+    for(let i = startIdx; i < sorted.length; i++){
+      const v = sorted[i];
+      if(v > remaining) continue;
+      current.push(v);
+      dfs(remaining - v, i, current); // i, not i+1 -> allows repeats
+      current.pop();
+    }
+  }
+
+  dfs(target, 0, []);
+  return results;
+}
+
+function comboPrice(combo){
+  return combo.reduce((sum, v) => sum + (diffPriceData[state.diffType]?.[v]?.[state.diffPressure] || 0), 0);
+}
+
+function renderComboList(){
+  const listEl = document.getElementById('comboList');
+  const titleEl = document.getElementById('comboSelectTitle');
+  const subEl = document.getElementById('comboSelectSub');
+  listEl.innerHTML = '';
+
+  const target = state.customTarget;
+  let combos = findCombinations(target, diffVolumes, MAX_COMBO_PIECES);
+
+  combos.sort((a,b)=>{
+    if(a.length !== b.length) return a.length - b.length;
+    return comboPrice(a) - comboPrice(b);
+  });
+  combos = combos.slice(0, MAX_COMBO_RESULTS);
+
+  titleEl.textContent = `${combos.length} way${combos.length===1?'':'s'} to reach ${target} mm`;
+  subEl.textContent = combos.length
+    ? 'Pick the combination that fits — total price updates instantly.'
+    : `No exact combination found within ${MAX_COMBO_PIECES} modules. Try a different target.`;
+
+  if(combos.length === 0){
+    const msg = document.createElement('div');
+    msg.className = 'custom-error show';
+    msg.style.marginTop = '4px';
+    msg.textContent = `We couldn't build ${target} mm from modules of ${diffVolumes.join(', ')} mm using up to ${MAX_COMBO_PIECES} pieces. Try a nearby value.`;
+    listEl.appendChild(msg);
+    return;
+  }
+
+  combos.forEach((combo, idx)=>{
+    const price = comboPrice(combo);
+    const b = document.createElement('button');
+    b.className = 'opt combo';
+    const formula = combo.map(v=>`${v}`).join('<span class="plus">+</span>');
+    b.innerHTML = `
+      <div>
+        <div class="combo-formula">${formula} <span style="color:var(--mist);font-weight:500;">mm</span></div>
+        <div class="combo-pieces">${combo.length} piece${combo.length>1?'s':''}${idx===0?' · <span class="combo-best">BEST FIT</span>':''}</div>
+      </div>
+      <div class="combo-meta-row">
+        <div class="combo-price">€ ${price.toFixed(2)}</div>
+      </div>`;
+    b.addEventListener('click', ()=>{
+      state.selectedCombo = combo;
+      showDiffComboResult(combo, price);
+      go('result');
+    });
+    listEl.appendChild(b);
+  });
+}
+
+/* ============================================================
+   RESULTS
+============================================================ */
+function specTag(icon, label, value){
+  return `<span class="crumb" style="background:#fff;"><span style="margin-right:4px">${icon}</span><span class="k">${label}</span>${value}</span>`;
+}
+
+function showDiffResult(){
+  const price = diffPriceData[state.diffType]?.[state.diffVolume]?.[state.diffPressure];
+  document.getElementById('resultBadgeText').textContent = 'Exact match found';
+  document.getElementById('resultLabel').textContent = 'Diffuser price';
+  document.getElementById('resultPrice').textContent = (price ?? 0).toFixed(2);
+  document.getElementById('resultSpecs').innerHTML =
+    specTag('📦','Model ', state.diffType) +
+    specTag('🌬️','Volume ', state.diffVolume+' m³/h') +
+    specTag('📊','Pressure ', state.diffPressure+' Pa');
+  document.getElementById('breakdownWrap').style.display = 'none';
+}
+
+function showDiffComboResult(combo, totalPrice){
+  document.getElementById('resultBadgeText').textContent = 'Custom combination priced';
+  document.getElementById('resultLabel').textContent = 'Total price';
+  document.getElementById('resultPrice').textContent = totalPrice.toFixed(2);
+  document.getElementById('resultSpecs').innerHTML =
+    specTag('📦','Model ', state.diffType) +
+    specTag('📐','Target ', state.customTarget+' mm') +
+    specTag('📊','Pressure ', state.diffPressure+' Pa') +
+    specTag('🧩','Pieces ', combo.length);
+
+  const rowsEl = document.getElementById('breakdownRows');
+  rowsEl.innerHTML = combo.map((v,i)=>{
+    const p = diffPriceData[state.diffType]?.[v]?.[state.diffPressure] || 0;
+    return `<div class="breakdown-row">
+      <span class="mod"><span class="idx">${i+1}</span>${v} mm module</span>
+      <span class="val">€ ${p.toFixed(2)}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('breakdownTotal').textContent = `${combo.reduce((a,b)=>a+b,0)} mm · € ${totalPrice.toFixed(2)}`;
+  document.getElementById('breakdownWrap').style.display = 'flex';
+}
+
+function showPlenoResult(){
+  const data = plenoData[state.plenoVolume]?.[state.plenoPressure];
+  const price = data ? data[state.plenoType+1] : 0;
+  const slot = data ? data[0] : '—';
+  document.getElementById('resultBadgeText').textContent = 'Exact match found';
+  document.getElementById('resultLabel').textContent = 'Pleno price';
+  document.getElementById('resultPrice').textContent = (price ?? 0).toFixed(2);
+  document.getElementById('resultSpecs').innerHTML =
+    specTag('🌬️','Volume ', state.plenoVolume+' m³/h') +
+    specTag('📊','Pressure ', state.plenoPressure+' Pa') +
+    specTag('📏','Slot ', slot+' mm') +
+    specTag('📦','Config ', plenoTypeMeta[state.plenoType].meta);
+  document.getElementById('breakdownWrap').style.display = 'none';
+}
+
+/* ============================================================
+   NAV EVENTS
+============================================================ */
+document.querySelectorAll('[data-cat]').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    state.category = b.dataset.cat;
+    if(state.category === 'diffuser') go('diff-type');
+    else go('pleno-volume');
+  });
+});
+
+document.querySelectorAll('[data-back]').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    goBack(b.dataset.back);
+  });
+});
+
+document.getElementById('customDimBtn').addEventListener('click', ()=>{
+  state.diffMode = 'custom';
+  document.getElementById('customError').classList.remove('show');
+  go('diff-custom-input');
+  setTimeout(()=>document.getElementById('customDimInput').focus(), 350);
+});
+
+document.getElementById('findCombosBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('customDimInput');
+  const errEl = document.getElementById('customError');
+  const val = parseInt(input.value, 10);
+  const minM = Math.min(...diffVolumes);
+
+  if(isNaN(val) || val < minM){
+    errEl.textContent = `Enter a value of at least ${minM} mm.`;
+    errEl.classList.add('show');
+    return;
+  }
+  errEl.classList.remove('show');
+  state.customTarget = val;
+
+  document.getElementById('diffPressureEyebrow').textContent = 'Custom · Diffuser';
+  document.getElementById('diffPressureSub').textContent = 'Pressure is needed to price each module in your combination.';
+  go('diff-pressure');
+});
+
+document.getElementById('diffPressureBack').addEventListener('click', ()=>{
+  if(state.diffMode === 'custom') goBack('diff-custom-input');
+  else goBack('diff-volume');
+});
+
+document.getElementById('restartTop').addEventListener('click', resetAll);
+document.getElementById('newSearchBtn').addEventListener('click', resetAll);
+document.getElementById('editBtn').addEventListener('click', ()=>{
+  if(state.category === 'diffuser'){
+    if(state.diffMode === 'custom') goBack('diff-custom-input');
+    else goBack('diff-volume');
+  } else {
+    goBack('pleno-volume');
+  }
+});
+
+/* ============================================================
+   INIT
+============================================================ */
+buildDiffTypeOptions();
+buildDiffVolumeOptions();
+buildDiffPressureOptions();
+buildPlenoVolumeOptions();
+buildPlenoPressureOptions();
+buildPlenoTypeOptions();
+buildModuleHint();
+
+showScreen('category');
+</script>
+
+</body>
+</html>
